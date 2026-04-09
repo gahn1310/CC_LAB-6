@@ -1,31 +1,51 @@
-stage('Deploy Backends') {
-    steps {
-        sh '''
-        docker network rm mynet || true
-        docker network create mynet
+pipeline {
+    agent any
 
-        docker rm -f backend1 backend2 || true
+    stages {
 
-        docker run -d --name backend1 --network mynet backend-app
-        docker run -d --name backend2 --network mynet backend-app
+        stage('Clone Repository') {
+            steps {
+                checkout scm
+            }
+        }
 
-        sleep 5
-        '''
-    }
-}
+        stage('Build Backend Image') {
+            steps {
+                sh 'docker build -t backend-app ./backend'
+            }
+        }
 
-stage('Setup NGINX') {
-    steps {
-        sh '''
-        docker rm -f nginx-lb || true
+        stage('Deploy Backends') {
+            steps {
+                sh '''
+                docker network create mynet || true
 
-        docker run -d --name nginx-lb -p 80:80 --network mynet nginx
+                docker rm -f backend1 backend2 || true
 
-        sleep 3
+                docker run -d --name backend1 --network mynet backend-app
+                docker run -d --name backend2 --network mynet backend-app
 
-        docker cp nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf
+                sleep 3
+                '''
+            }
+        }
 
-        docker exec nginx-lb nginx -s reload
-        '''
+        stage('Setup NGINX') {
+            steps {
+                sh '''
+                docker rm -f nginx-lb || true
+
+                docker run -d --name nginx-lb \
+                --network mynet \
+                -p 80:80 nginx
+
+                sleep 2
+
+                docker cp nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf
+
+                docker exec nginx-lb nginx -s reload
+                '''
+            }
+        }
     }
 }
