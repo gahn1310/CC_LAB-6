@@ -25,7 +25,8 @@ pipeline {
                 docker run -d --name backend1 --network mynet backend-app
                 docker run -d --name backend2 --network mynet backend-app
 
-                sleep 3
+                # wait for containers to be ready
+                sleep 5
                 '''
             }
         }
@@ -39,7 +40,8 @@ pipeline {
                 --network mynet \
                 -p 80:80 nginx
 
-                sleep 2
+                # wait for nginx + network DNS
+                sleep 5
 
                 docker cp nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf
 
