@@ -1,53 +1,47 @@
 pipeline {
     agent any
-
     stages {
-
-        stage('Clone Repository') {
+        stage('Checkout SCM') {
             steps {
                 checkout scm
             }
         }
-
         stage('Build Backend Image') {
             steps {
                 sh 'docker build -t backend-app ./backend'
             }
         }
-
-        stage('Deploy Backends') {
+        stage('Deploy Backend Containers') {
             steps {
                 sh '''
                 docker network create mynet || true
-
                 docker rm -f backend1 backend2 || true
-
                 docker run -d --name backend1 --network mynet backend-app
                 docker run -d --name backend2 --network mynet backend-app
-
-                # wait for containers to be ready
                 sleep 5
                 '''
             }
         }
-
-        stage('Setup NGINX') {
+        stage('Deploy NGINX Load Balancer') {
             steps {
                 sh '''
                 docker rm -f nginx-lb || true
-
                 docker run -d --name nginx-lb \
-                --network mynet \
-                -p 80:80 nginx
-
-                # wait for nginx + network DNS
-                sleep 5
-
+                    --network mynet \
+                    -p 80:80 nginx
+                sleep 3
                 docker cp nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf
-
                 docker exec nginx-lb nginx -s reload
                 '''
             }
+        }
+    }
+    post {
+        success {
+            echo 'Pipeline executed successfully. NGINX load balancer is running.'
+        }
+        failure {
+            echo 'Pipeline failed. Check console logs for errors.'
         }
     }
 }
